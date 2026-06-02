@@ -943,6 +943,15 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
         }
         EventMsg::ViewImageToolCall(_) => {}
+        EventMsg::TeamCreated(_)
+        | EventMsg::TeamMemberJoined(_)
+        | EventMsg::TaskCreated(_)
+        | EventMsg::TaskUpdated(_)
+        | EventMsg::TaskUnblocked(_) => {
+            // Agent Teams events are surfaced to clients in a later change
+            // (execution plan PR-6). Until event_mapping has explicit arms,
+            // they must not be forwarded (that would hit the unreachable! arm).
+        }
         EventMsg::EnteredReviewMode(review_request) => {
             let review = review_request
                 .user_facing_hint
