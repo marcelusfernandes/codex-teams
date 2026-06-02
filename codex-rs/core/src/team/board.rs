@@ -138,9 +138,8 @@ impl TaskBoard {
             return Err(BoardError::NotPending);
         }
         let unmet: Vec<TaskId> = task
-            .depends_on
-            .iter()
-            .filter(|dep| !completed.contains(*dep))
+            .unmet_dependencies(|dep| completed.contains(dep))
+            .into_iter()
             .cloned()
             .collect();
         if !unmet.is_empty() {
