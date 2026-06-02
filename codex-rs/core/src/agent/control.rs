@@ -161,6 +161,11 @@ pub(crate) struct AgentControl {
     /// `ThreadManagerState -> CodexThread -> Session -> SessionServices -> ThreadManagerState`.
     manager: Weak<ThreadManagerState>,
     state: Arc<AgentRegistry>,
+    /// Shared task board for the Agent Teams feature. Like `state`, this is an
+    /// `Arc`-backed handle, so cloning `AgentControl` for a spawned teammate
+    /// shares one board across the whole team (the spawn subtree), while a new
+    /// root session starts with an empty board.
+    team_board: crate::team::board::TaskBoard,
 }
 
 impl AgentControl {
@@ -179,6 +184,12 @@ impl AgentControl {
 
     pub(crate) fn session_id(&self) -> SessionId {
         self.session_id
+    }
+
+    /// Shared task board for this team (the spawn subtree). Teammates obtain
+    /// the same board because `AgentControl` is cloned on spawn.
+    pub(crate) fn team_board(&self) -> &crate::team::board::TaskBoard {
+        &self.team_board
     }
 
     /// Spawn a new agent thread and submit the initial prompt.

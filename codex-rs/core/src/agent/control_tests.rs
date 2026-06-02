@@ -2980,3 +2980,66 @@ async fn resume_agent_from_rollout_skips_descendants_when_parent_resume_fails() 
         .await
         .expect("tree shutdown after partial subtree resume should succeed");
 }
+
+/// Agent Teams: the shared task board rides `AgentControl`, so a teammate
+/// spawned by cloning the lead's control (as `codex_delegate` does) observes
+/// the same board — including dependency gating and unblock cascades.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn agent_team_board_is_shared_across_cloned_control() {
+    use codex_protocol::team::TaskStatus;
+    use codex_protocol::team::TeammateName;
+
+    let lead = AgentControl::default();
+    // Spawning a teammate clones the lead's control; the board must be shared.
+    let teammate = lead.clone();
+
+    let a = lead
+        .team_board()
+        .create("design".to_string(), None, TeammateName::from("lead"), vec![])
+        .await;
+    let b = lead
+        .team_board()
+        .create(
+            "build".to_string(),
+            None,
+            TeammateName::from("lead"),
+            vec![a.id.clone()],
+        )
+        .await;
+
+    // The teammate sees both tasks through its own (shared) handle.
+    assert_eq!(teammate.team_board().list().await.len(), 2);
+
+    // `b` is blocked by `a` until `a` completes.
+    assert!(
+        teammate
+            .team_board()
+            .claim(&b.id, TeammateName::from("w1"))
+            .await
+            .is_err()
+    );
+
+    teammate
+        .team_board()
+        .claim(&a.id, TeammateName::from("w1"))
+        .await
+        .expect("claim a");
+    let (_done, unblocked) = teammate
+        .team_board()
+        .update(&a.id, TaskStatus::Completed)
+        .await
+        .expect("complete a");
+    assert_eq!(unblocked, vec![b.id.clone()]);
+
+    teammate
+        .team_board()
+        .claim(&b.id, TeammateName::from("w2"))
+        .await
+        .expect("claim b");
+
+    // The claim is visible from the lead's handle too (same shared board).
+    let from_lead = lead.team_board().list().await;
+    let b_seen = from_lead.iter().find(|t| t.id == b.id).expect("b present");
+    assert_eq!(b_seen.assignee, Some(TeammateName::from("w2")));
+    assert_eq!(b_seen.status, TaskStatus::InProgress);
+}
