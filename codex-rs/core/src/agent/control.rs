@@ -165,6 +165,9 @@ pub(crate) struct AgentControl {
     /// `Arc`-backed handle, so cloning `AgentControl` for a spawned teammate
     /// shares one board across the whole team (the spawn subtree), while a new
     /// root session starts with an empty board.
+    // Read through `team_board()`; the model-visible task tools that exercise it
+    // land in PR-4 (see docs/rfcs/0002-agent-teams-execution-plan.md).
+    #[allow(dead_code)]
     team_board: crate::team::board::TaskBoard,
 }
 
@@ -188,6 +191,9 @@ impl AgentControl {
 
     /// Shared task board for this team (the spawn subtree). Teammates obtain
     /// the same board because `AgentControl` is cloned on spawn.
+    // Consumed by the PR-4 task tools; exercised today by the team integration
+    // test (`agent_team_board_is_shared_across_cloned_control`).
+    #[allow(dead_code)]
     pub(crate) fn team_board(&self) -> &crate::team::board::TaskBoard {
         &self.team_board
     }
