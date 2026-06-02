@@ -20,6 +20,11 @@ use crate::tools::handlers::RequestPluginInstallHandler;
 use crate::tools::handlers::RequestUserInputHandler;
 use crate::tools::handlers::ShellCommandHandler;
 use crate::tools::handlers::ShellCommandHandlerOptions;
+use crate::tools::handlers::TaskClaimHandler;
+use crate::tools::handlers::TaskCreateHandler;
+use crate::tools::handlers::TaskListHandler;
+use crate::tools::handlers::TaskUpdateHandler;
+use crate::tools::handlers::TeamRosterHandler;
 use crate::tools::handlers::TestSyncHandler;
 use crate::tools::handlers::ToolSearchHandler;
 use crate::tools::handlers::UpdateGoalHandler;
@@ -718,6 +723,12 @@ fn add_collaboration_tools(context: &CoreToolPlanContext<'_>, planned_tools: &mu
                 multi_agent_v2_handler(ListAgentsHandlerV2, tool_namespace),
                 exposure,
             ));
+            // Agent Teams shared task board (PR-4).
+            planned_tools.add(TaskCreateHandler);
+            planned_tools.add(TaskClaimHandler);
+            planned_tools.add(TaskUpdateHandler);
+            planned_tools.add(TaskListHandler);
+            planned_tools.add(TeamRosterHandler);
         } else {
             let agent_type_description =
                 agent_type_description(turn_context, context.default_agent_type_description);
