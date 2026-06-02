@@ -1348,6 +1348,17 @@ pub enum EventMsg {
     CollabResumeBegin(CollabResumeBeginEvent),
     /// Collab interaction: resume end.
     CollabResumeEnd(CollabResumeEndEvent),
+
+    /// Agent Teams: a team was created by the lead.
+    TeamCreated(crate::team::TeamCreatedEvent),
+    /// Agent Teams: a teammate joined the roster.
+    TeamMemberJoined(crate::team::TeamMemberJoinedEvent),
+    /// Agent Teams: a task was added to the shared board.
+    TaskCreated(crate::team::TaskCreatedEvent),
+    /// Agent Teams: a task changed status and/or assignee.
+    TaskUpdated(crate::team::TaskUpdatedEvent),
+    /// Agent Teams: a blocked task became claimable.
+    TaskUnblocked(crate::team::TaskUnblockedEvent),
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS, EnumIter)]
@@ -1564,6 +1575,36 @@ impl From<CollabResumeBeginEvent> for EventMsg {
 impl From<CollabResumeEndEvent> for EventMsg {
     fn from(event: CollabResumeEndEvent) -> Self {
         EventMsg::CollabResumeEnd(event)
+    }
+}
+
+impl From<crate::team::TeamCreatedEvent> for EventMsg {
+    fn from(event: crate::team::TeamCreatedEvent) -> Self {
+        EventMsg::TeamCreated(event)
+    }
+}
+
+impl From<crate::team::TeamMemberJoinedEvent> for EventMsg {
+    fn from(event: crate::team::TeamMemberJoinedEvent) -> Self {
+        EventMsg::TeamMemberJoined(event)
+    }
+}
+
+impl From<crate::team::TaskCreatedEvent> for EventMsg {
+    fn from(event: crate::team::TaskCreatedEvent) -> Self {
+        EventMsg::TaskCreated(event)
+    }
+}
+
+impl From<crate::team::TaskUpdatedEvent> for EventMsg {
+    fn from(event: crate::team::TaskUpdatedEvent) -> Self {
+        EventMsg::TaskUpdated(event)
+    }
+}
+
+impl From<crate::team::TaskUnblockedEvent> for EventMsg {
+    fn from(event: crate::team::TaskUnblockedEvent) -> Self {
+        EventMsg::TaskUnblocked(event)
     }
 }
 

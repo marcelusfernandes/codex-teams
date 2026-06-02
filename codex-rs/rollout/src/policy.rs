@@ -151,6 +151,11 @@ pub fn should_persist_event_msg(ev: &EventMsg) -> bool {
         | EventMsg::CollabAgentInteractionBegin(_)
         | EventMsg::CollabWaitingBegin(_)
         | EventMsg::CollabCloseBegin(_)
-        | EventMsg::CollabResumeBegin(_) => false,
+        | EventMsg::CollabResumeBegin(_)
+        | EventMsg::TeamCreated(_)
+        | EventMsg::TeamMemberJoined(_)
+        | EventMsg::TaskCreated(_)
+        | EventMsg::TaskUpdated(_)
+        | EventMsg::TaskUnblocked(_) => false,
     }
 }
