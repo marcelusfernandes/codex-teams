@@ -168,6 +168,7 @@ pub use rollout::rollout_date_parts;
 mod function_tool;
 mod state;
 mod tasks;
+mod team;
 mod user_shell_command;
 pub mod util;
 

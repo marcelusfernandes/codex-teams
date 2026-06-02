@@ -175,34 +175,41 @@ dependents are now unblocked and emits events (see §5.5).
 
 ### 5.3 Persistence & concurrency (the crux)
 
-Mirror the reference layout under `codex_home` (resolved exactly like other Codex
-config; see `config/mod.rs::codex_home`):
+> **Reconciled (per architecture review):** v1 ships an **in-process** board only;
+> the advisory file lock is explicitly out of scope until cross-process `exec`
+> teams land (§7, Q4). An earlier draft presented file locking as the shipping
+> mechanism — that was wrong, because an atomic rename alone does **not** prevent
+> the read-modify-write race (two writers both read v1; the last rename wins). The
+> guarantee below is provided by the in-memory mutex, not by the file.
+
+Today every teammate is a separate async task **in one process** (the spawn
+subtree shares a single cloned `AgentControl` over an `Arc`). The board mirrors
+that: a single `Arc<tokio::sync::Mutex<BoardInner>>` cloned across the subtree.
+`task_claim` — the only contended op — is a compare-and-set performed **entirely
+under the async lock**, so two teammates racing to claim the same task cannot both
+win. (Implemented and validated in PR-2: a 32-way concurrent-claim test yields
+exactly one winner.)
+
+Persistence is layered on top, not relied on for correctness. `TeamControl`
+(PR-3) snapshots the board and writes it atomically under `codex_home`:
 
 ```
 <codex_home>/teams/{team_id}/config.json     # TeamConfig (runtime state)
-<codex_home>/tasks/{team_id}/board.json       # the task list
-<codex_home>/tasks/{team_id}/board.lock       # advisory lock file
+<codex_home>/tasks/{team_id}/board.json       # the task list (snapshot)
 ```
 
-Because teammates are separate async tasks within the same process today (and could
-be separate processes for `exec`), claims must be race-free. The board uses an
-**advisory file lock** (`fs2`/`fd-lock` style — pick one already in the tree;
-otherwise an OS `flock`) around a read-modify-write cycle:
+Atomic write uses `tempfile::Builder::tempfile_in(dir)` → write → `sync_all` →
+`persist` (clobbering — note: **not** `persist_noclobber`, which is write-once and
+used only by rollout compression). No new dependency is required.
 
-```
-lock(board.lock) → read board.json → mutate → atomic write (tmp + rename) → unlock
-```
-
-This is the same "task claiming uses file locking to prevent race conditions"
-guarantee the reference describes. `task_claim` is the only contended op and is
-implemented as compare-and-set under the lock: claim succeeds only if the task is
-still `Pending && assignee.is_none()`.
-
-> Open question (Q1, §9): in-process teammates could instead share an
-> `Arc<Mutex<TaskBoard>>` and skip files entirely, with the file layer used only for
-> persistence/resume. Cross-process `exec` teams need the file lock. The proposal is
-> to implement **both behind one `TaskBoard` trait** (`InProcess` and `FileLocked`),
-> selected by session source.
+> **Cross-process (`exec`) is unsupported in v1.** When `exec` teammates are
+> separate processes the shared `Arc` does not exist, so the in-memory guarantee
+> evaporates and the shared `board.json` path would invite a multi-writer race
+> with no lock. A `FileLocked` backend (advisory `flock`) behind the same board
+> API is the prerequisite before any multi-process team can be created — tracked
+> as Q4, not built here. Resume has the same hazard (the live `Arc` identity is
+> lost on `/resume`); v1 therefore reloads the board from disk but does **not**
+> auto-restore teammates (§7).
 
 ### 5.4 New tools (model-visible)
 
