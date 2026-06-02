@@ -470,3 +470,136 @@ fn single_task_id_spec(name: &str, description: &str) -> ToolSpec {
         output_schema: None,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::session::session::Session;
+    use crate::session::tests::make_session_and_context;
+    use crate::tools::context::ToolCallSource;
+    use crate::tools::context::ToolPayload;
+    use crate::turn_diff_tracker::TurnDiffTracker;
+    use serde_json::json;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    fn invoke(
+        session: &Arc<Session>,
+        turn: &Arc<TurnContext>,
+        name: &'static str,
+        args: serde_json::Value,
+    ) -> ToolInvocation {
+        ToolInvocation {
+            session: Arc::clone(session),
+            turn: Arc::clone(turn),
+            cancellation_token: tokio_util::sync::CancellationToken::new(),
+            tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
+            call_id: format!("call-{name}"),
+            tool_name: ToolName::plain(name),
+            source: ToolCallSource::Direct,
+            payload: ToolPayload::Function {
+                arguments: args.to_string(),
+            },
+        }
+    }
+
+    /// Drives the real Agent Teams tool handlers (as the model would invoke
+    /// them) through a real `Session`: create -> dependency-gated claim ->
+    /// complete -> unblocked claim, asserting the shared board state.
+    #[tokio::test]
+    async fn task_tools_drive_the_board_end_to_end() {
+        let (session, turn) = make_session_and_context().await;
+        let session = Arc::new(session);
+        let turn = Arc::new(turn);
+
+        TaskCreateHandler
+            .handle(invoke(
+                &session,
+                &turn,
+                "task_create",
+                json!({"title": "investigate"}),
+            ))
+            .await
+            .expect("create a");
+        let a_id = session.services.agent_control.team_board().list().await[0]
+            .id
+            .clone();
+
+        TaskCreateHandler
+            .handle(invoke(
+                &session,
+                &turn,
+                "task_create",
+                json!({"title": "build", "depends_on": [a_id.as_str()]}),
+            ))
+            .await
+            .expect("create b");
+        let b_id = session
+            .services
+            .agent_control
+            .team_board()
+            .list()
+            .await
+            .into_iter()
+            .find(|t| t.title == "build")
+            .expect("b present")
+            .id;
+
+        // Claiming b is rejected while a is unfinished.
+        assert!(
+            TaskClaimHandler
+                .handle(invoke(
+                    &session,
+                    &turn,
+                    "task_claim",
+                    json!({"task_id": b_id.as_str()}),
+                ))
+                .await
+                .is_err()
+        );
+
+        TaskClaimHandler
+            .handle(invoke(
+                &session,
+                &turn,
+                "task_claim",
+                json!({"task_id": a_id.as_str()}),
+            ))
+            .await
+            .expect("claim a");
+        TaskUpdateHandler
+            .handle(invoke(
+                &session,
+                &turn,
+                "task_update",
+                json!({"task_id": a_id.as_str(), "status": "completed"}),
+            ))
+            .await
+            .expect("complete a");
+
+        // Now b is claimable through the tool.
+        TaskClaimHandler
+            .handle(invoke(
+                &session,
+                &turn,
+                "task_claim",
+                json!({"task_id": b_id.as_str()}),
+            ))
+            .await
+            .expect("claim b after unblock");
+
+        TaskListHandler
+            .handle(invoke(&session, &turn, "task_list", json!({})))
+            .await
+            .expect("list");
+
+        let tasks = session.services.agent_control.team_board().list().await;
+        assert_eq!(tasks.len(), 2);
+        let b = tasks
+            .into_iter()
+            .find(|t| t.id == b_id)
+            .expect("b present after flow");
+        assert_eq!(b.status, TaskStatus::InProgress);
+        assert_eq!(b.assignee, Some(TeammateName::from("lead")));
+    }
+}
