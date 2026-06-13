@@ -76,6 +76,7 @@ use codex_app_server_protocol::TurnError;
 use codex_app_server_protocol::TurnInterruptResponse;
 use codex_app_server_protocol::TurnItemsView;
 use codex_app_server_protocol::TurnPlanStep;
+use codex_app_server_protocol::TeamTaskUpdatedNotification;
 use codex_app_server_protocol::TurnPlanUpdatedNotification;
 use codex_app_server_protocol::TurnStartedNotification;
 use codex_app_server_protocol::TurnStatus;
@@ -943,14 +944,18 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
         }
         EventMsg::ViewImageToolCall(_) => {}
+        EventMsg::TaskCreated(event) => {
+            handle_team_task_updated(conversation_id, event.team_id, event.task, &outgoing).await;
+        }
+        EventMsg::TaskUpdated(event) => {
+            handle_team_task_updated(conversation_id, event.team_id, event.task, &outgoing).await;
+        }
         EventMsg::TeamCreated(_)
         | EventMsg::TeamMemberJoined(_)
-        | EventMsg::TaskCreated(_)
-        | EventMsg::TaskUpdated(_)
         | EventMsg::TaskUnblocked(_) => {
-            // Agent Teams events are surfaced to clients in a later change
-            // (execution plan PR-6). Until event_mapping has explicit arms,
-            // they must not be forwarded (that would hit the unreachable! arm).
+            // The board view is reconstructed from TaskCreated/TaskUpdated
+            // deltas; roster and unblock events need no separate client surface
+            // yet.
         }
         EventMsg::EnteredReviewMode(review_request) => {
             let review = review_request
@@ -1249,6 +1254,22 @@ pub(crate) async fn apply_bespoke_event_handling(
 
         _ => {}
     }
+}
+
+async fn handle_team_task_updated(
+    conversation_id: ThreadId,
+    team_id: codex_protocol::team::TeamId,
+    task: codex_protocol::team::Task,
+    outgoing: &ThreadScopedOutgoingMessageSender,
+) {
+    let notification = TeamTaskUpdatedNotification {
+        thread_id: conversation_id.to_string(),
+        team_id: team_id.to_string(),
+        task: task.into(),
+    };
+    outgoing
+        .send_server_notification(ServerNotification::TeamTaskUpdated(notification))
+        .await;
 }
 
 async fn handle_turn_diff(

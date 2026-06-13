@@ -176,10 +176,9 @@ pub struct TaskCreatedEvent {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, TS)]
 pub struct TaskUpdatedEvent {
     pub team_id: TeamId,
-    pub task_id: TaskId,
-    pub status: TaskStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub assignee: Option<TeammateName>,
+    /// The full task after the update, so clients can render the board without a
+    /// separate fetch (uniform with `TaskCreatedEvent`).
+    pub task: Task,
 }
 
 /// A previously blocked task became claimable because its dependencies

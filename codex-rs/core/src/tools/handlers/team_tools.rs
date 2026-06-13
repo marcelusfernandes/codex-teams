@@ -235,9 +235,7 @@ impl ToolExecutor<ToolInvocation> for TaskClaimHandler {
                 turn.as_ref(),
                 EventMsg::TaskUpdated(TaskUpdatedEvent {
                     team_id,
-                    task_id: task.id.clone(),
-                    status: task.status,
-                    assignee: task.assignee.clone(),
+                    task: task.clone(),
                 }),
             )
             .await;
@@ -331,9 +329,7 @@ impl ToolExecutor<ToolInvocation> for TaskUpdateHandler {
                 turn.as_ref(),
                 EventMsg::TaskUpdated(TaskUpdatedEvent {
                     team_id: team_id.clone(),
-                    task_id: task.id.clone(),
-                    status: task.status,
-                    assignee: task.assignee.clone(),
+                    task: task.clone(),
                 }),
             )
             .await;

@@ -112,6 +112,9 @@ impl ChatWidget {
                         .collect(),
                 })
             }
+            ServerNotification::TeamTaskUpdated(notification) => {
+                self.on_team_task_updated(notification.task);
+            }
             ServerNotification::HookStarted(notification) => {
                 self.on_hook_started(notification.run);
             }
