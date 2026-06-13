@@ -24,6 +24,39 @@ pub(crate) struct TeamBoardCell {
     tasks: Vec<Task>,
 }
 
+/// Live board state the chat widget maintains as `TaskCreated`/`TaskUpdated`
+/// events stream in. Applying a delta replaces a task in place (so the rendered
+/// board never reorders as work progresses) and appends unseen tasks in arrival
+/// order. `cell()` snapshots the current state for the transcript.
+#[derive(Debug, Default, Clone)]
+#[allow(dead_code)]
+pub(crate) struct TeamBoardModel {
+    tasks: Vec<Task>,
+}
+
+#[allow(dead_code)]
+impl TeamBoardModel {
+    /// Insert a new task or replace an existing one (matched by id) in place.
+    pub(crate) fn apply(&mut self, task: Task) {
+        if let Some(existing) = self.tasks.iter_mut().find(|t| t.id == task.id) {
+            *existing = task;
+        } else {
+            self.tasks.push(task);
+        }
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.tasks.is_empty()
+    }
+
+    /// Snapshot the current board as a renderable history cell.
+    pub(crate) fn cell(&self) -> TeamBoardCell {
+        TeamBoardCell {
+            tasks: self.tasks.clone(),
+        }
+    }
+}
+
 impl HistoryCell for TeamBoardCell {
     fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
         let completed: HashSet<&codex_protocol::team::TaskId> = self
@@ -156,5 +189,42 @@ mod tests {
         let cell = new_team_board(vec![]);
         let text = rendered_text(&cell.display_lines(80));
         assert!(text.contains("(no tasks yet)"));
+    }
+
+    #[test]
+    fn model_appends_new_tasks_in_arrival_order() {
+        let mut model = TeamBoardModel::default();
+        assert!(model.is_empty());
+        model.apply(task("t1", "first", TaskStatus::Pending));
+        model.apply(task("t2", "second", TaskStatus::Pending));
+        let text = rendered_text(&model.cell().display_lines(80));
+        let first = text.find("first").expect("first present");
+        let second = text.find("second").expect("second present");
+        assert!(first < second, "tasks render in arrival order");
+        assert!(!model.is_empty());
+    }
+
+    #[test]
+    fn model_replaces_task_in_place_on_update() {
+        let mut model = TeamBoardModel::default();
+        model.apply(task("t1", "a", TaskStatus::Pending));
+        model.apply(task("t2", "b", TaskStatus::Pending));
+        // Update t1 to in-progress with an assignee; order must stay a, b.
+        let mut updated = task("t1", "a", TaskStatus::InProgress);
+        updated.assignee = Some(TeammateName::from("worker"));
+        model.apply(updated);
+
+        let text = rendered_text(&model.cell().display_lines(80));
+        assert!(text.contains("@worker"));
+        let a = text.find(" a").expect("a present");
+        let b = text.find(" b").expect("b present");
+        assert!(a < b, "updating a task must not reorder the board");
+        // No duplicate entry was created.
+        assert_eq!(model.cell().display_lines(80).len(), {
+            let mut fresh = TeamBoardModel::default();
+            fresh.apply(task("t1", "a", TaskStatus::InProgress));
+            fresh.apply(task("t2", "b", TaskStatus::Pending));
+            fresh.cell().display_lines(80).len()
+        });
     }
 }
