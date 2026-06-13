@@ -1,6 +1,6 @@
 # Execution Plan 0002 — Building Agent Teams
 
-Status: **Functionally complete (6/7); TUI panel (PR-6) blocked by this environment**
+Status: **Functionally complete; PR-6 board panel rendered & tested. Only the app-server event-forwarding glue (compile-only here) + a live LLM run remain.**
 Companion to: `docs/rfcs/0001-agent-teams.md`
 Branch: `Horus`
 
@@ -15,7 +15,7 @@ Branch: `Horus`
 | PR-3 | Board shared via `AgentControl` + native integration test | ✅ Landed & green (`agent_team_board_is_shared_across_cloned_control`). |
 | PR-4 | Model-visible tools (`task_create/claim/update/list`, `team_roster`) | ✅ Landed. `cargo check -p codex-core` clean (0 warnings). |
 | PR-5 | Quality-gate hooks | ✅ **Covered by the existing hooks framework — no new code needed.** `TaskCreated`/`TaskCompleted` fire as the standard `pre_tool_use`/`post_tool_use` hooks on the `task_create`/`task_update` tools (they are `CoreToolRuntime` `Function` tools; see `tools/registry.rs`). `TeammateIdle` is the existing `SubagentStop` hook: `run_turn_stop_hooks` (`session/turn.rs:323`, `hook_runtime.rs:294-331`) dispatches `SubagentStop` for thread-spawned (teammate) turns when they go idle — a user can gate it (exit≠0 re-prompts), exactly the TeammateIdle behavior. |
-| PR-6 | App-server forwarding + TUI board panel | 🔴 Blocked here: `codex-tui` depends on `realtime-webrtc` → `libwebrtc`, whose chromium submodule is blocked by this environment's network policy, so `tui` cannot compile. The app-server forwarding half is buildable but its only consumer (the TUI panel) is not, so it is deferred rather than shipped unobservable. |
+| PR-6 | App-server forwarding + TUI board panel | 🟢 **Rendering done & tested**: `TeamBoardCell` renders status + assignee + blocked-by-deps; `cargo test -p codex-tui team_board` → 3/3. **Correction:** an earlier note wrongly called this environment-blocked — `codex-tui` *does* compile on Linux (the `libwebrtc`/`realtime-webrtc` dependency is `cfg(target_os = "macos")` only; a resolution stub suffices on Linux). Remaining: wire the cell to live `TaskUpdated`/`TaskCreated` events via app-server `ServerNotification` forwarding (compile-verifiable, but unobservable without a live TUI/model, and touches snapshot-tested client protocol). |
 | PR-7 | User guide + docs | ✅ `docs/agent-teams.md` landed. Config-schema/example-config updates remain. |
 
 **Verification note.** Full-workspace builds here require a local-only
