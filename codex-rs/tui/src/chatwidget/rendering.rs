@@ -2,6 +2,8 @@
 
 use super::*;
 
+const TEAM_BOARD_PANEL_MAX_ROWS: u16 = 12;
+
 impl ChatWidget {
     pub(super) fn as_renderable(&self) -> RenderableItem<'_> {
         let active_cell_right_reserve = self.ambient_pet_wrap_reserved_cols();
@@ -23,8 +25,19 @@ impl ChatWidget {
             }
             _ => RenderableItem::Owned(Box::new(())),
         };
+        let team_board_panel_renderable = if self.team_board.is_empty() {
+            RenderableItem::Owned(Box::new(()))
+        } else {
+            RenderableItem::Owned(Box::new(TeamBoardPanelRenderable {
+                board: &self.team_board,
+                top: 1,
+                right: active_cell_right_reserve,
+                max_rows: TEAM_BOARD_PANEL_MAX_ROWS,
+            }))
+        };
         let mut flex = FlexRenderable::new();
         flex.push(/*flex*/ 1, active_cell_renderable);
+        flex.push(/*flex*/ 0, team_board_panel_renderable);
         flex.push(/*flex*/ 0, active_hook_cell_renderable);
         flex.push(
             /*flex*/ 0,
@@ -37,6 +50,48 @@ impl ChatWidget {
             )),
         );
         RenderableItem::Owned(Box::new(flex))
+    }
+}
+
+struct TeamBoardPanelRenderable<'a> {
+    board: &'a history_cell::TeamBoardModel,
+    top: u16,
+    right: u16,
+    max_rows: u16,
+}
+
+impl Renderable for TeamBoardPanelRenderable<'_> {
+    fn render(&self, area: Rect, buf: &mut Buffer) {
+        let area = self.child_area(area);
+        if area.width == 0 || area.height == 0 {
+            return;
+        }
+
+        let lines = self.board.display_lines(area.width);
+        let paragraph = Paragraph::new(Text::from(lines)).wrap(Wrap { trim: false });
+        let overflow = paragraph
+            .line_count(area.width)
+            .saturating_sub(usize::from(area.height));
+        let y = u16::try_from(overflow).unwrap_or(u16::MAX);
+        Clear.render(area, buf);
+        paragraph.scroll((y, 0)).render(area, buf);
+    }
+
+    fn desired_height(&self, width: u16) -> u16 {
+        if self.board.is_empty() {
+            return 0;
+        }
+        let child_width = width.saturating_sub(self.right).max(1);
+        let rows = HistoryCell::desired_height(self.board, child_width).min(self.max_rows);
+        rows.saturating_add(self.top)
+    }
+}
+
+impl TeamBoardPanelRenderable<'_> {
+    fn child_area(&self, area: Rect) -> Rect {
+        let y = area.y.saturating_add(self.top);
+        let height = area.height.saturating_sub(self.top);
+        Rect::new(area.x, y, area.width.saturating_sub(self.right), height)
     }
 }
 

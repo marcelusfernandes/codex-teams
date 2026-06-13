@@ -50,6 +50,7 @@ use codex_app_server_protocol::RawResponseItemCompletedNotification;
 use codex_app_server_protocol::RequestId;
 use codex_app_server_protocol::ServerNotification;
 use codex_app_server_protocol::ServerRequestPayload;
+use codex_app_server_protocol::TeamTaskUpdatedNotification;
 use codex_app_server_protocol::ThreadGoalUpdatedNotification;
 use codex_app_server_protocol::ThreadItem;
 use codex_app_server_protocol::ThreadRealtimeClosedNotification;
@@ -76,7 +77,6 @@ use codex_app_server_protocol::TurnError;
 use codex_app_server_protocol::TurnInterruptResponse;
 use codex_app_server_protocol::TurnItemsView;
 use codex_app_server_protocol::TurnPlanStep;
-use codex_app_server_protocol::TeamTaskUpdatedNotification;
 use codex_app_server_protocol::TurnPlanUpdatedNotification;
 use codex_app_server_protocol::TurnStartedNotification;
 use codex_app_server_protocol::TurnStatus;
@@ -950,9 +950,7 @@ pub(crate) async fn apply_bespoke_event_handling(
         EventMsg::TaskUpdated(event) => {
             handle_team_task_updated(conversation_id, event.team_id, event.task, &outgoing).await;
         }
-        EventMsg::TeamCreated(_)
-        | EventMsg::TeamMemberJoined(_)
-        | EventMsg::TaskUnblocked(_) => {
+        EventMsg::TeamCreated(_) | EventMsg::TeamMemberJoined(_) | EventMsg::TaskUnblocked(_) => {
             // The board view is reconstructed from TaskCreated/TaskUpdated
             // deltas; roster and unblock events need no separate client surface
             // yet.

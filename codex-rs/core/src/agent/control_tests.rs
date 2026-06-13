@@ -2995,7 +2995,12 @@ async fn agent_team_board_is_shared_across_cloned_control() {
 
     let a = lead
         .team_board()
-        .create("design".to_string(), None, TeammateName::from("lead"), vec![])
+        .create(
+            "design".to_string(),
+            None,
+            TeammateName::from("lead"),
+            vec![],
+        )
         .await;
     let b = lead
         .team_board()

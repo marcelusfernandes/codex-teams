@@ -50,7 +50,11 @@ impl From<CoreTask> for TeamTask {
             title: task.title,
             status: task.status.into(),
             assignee: task.assignee.map(|name| name.to_string()),
-            depends_on: task.depends_on.into_iter().map(|id| id.to_string()).collect(),
+            depends_on: task
+                .depends_on
+                .into_iter()
+                .map(|id| id.to_string())
+                .collect(),
         }
     }
 }

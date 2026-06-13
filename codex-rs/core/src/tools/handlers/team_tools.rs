@@ -112,7 +112,10 @@ impl ToolExecutor<ToolInvocation> for TaskCreateHandler {
                 "depends_on".to_string(),
                 JsonSchema::array(
                     JsonSchema::string(Some("Task id this task depends on.".to_string())),
-                    Some("Task ids that must be completed before this task is claimable.".to_string()),
+                    Some(
+                        "Task ids that must be completed before this task is claimable."
+                            .to_string(),
+                    ),
                 ),
             ),
         ]);
@@ -165,7 +168,12 @@ impl ToolExecutor<ToolInvocation> for TaskCreateHandler {
             .services
             .agent_control
             .team_board()
-            .create(args.title, args.details, caller_name(turn.as_ref()), depends_on)
+            .create(
+                args.title,
+                args.details,
+                caller_name(turn.as_ref()),
+                depends_on,
+            )
             .await;
 
         session
@@ -206,7 +214,10 @@ impl ToolExecutor<ToolInvocation> for TaskClaimHandler {
     }
 
     fn spec(&self) -> ToolSpec {
-        single_task_id_spec("task_claim", "Claim a pending, unblocked task for yourself.")
+        single_task_id_spec(
+            "task_claim",
+            "Claim a pending, unblocked task for yourself.",
+        )
     }
 
     async fn handle(
@@ -433,8 +444,9 @@ impl ToolExecutor<ToolInvocation> for TeamRosterHandler {
             .list_agents(&turn.session_source, /*path_prefix*/ None)
             .await
             .map_err(|err| FunctionCallError::RespondToModel(err.to_string()))?;
-        let body = serde_json::to_string(&agents)
-            .map_err(|err| FunctionCallError::Fatal(format!("failed to serialize roster: {err}")))?;
+        let body = serde_json::to_string(&agents).map_err(|err| {
+            FunctionCallError::Fatal(format!("failed to serialize roster: {err}"))
+        })?;
         Ok(boxed_tool_output(FunctionToolOutput::from_text(
             body,
             Some(true),

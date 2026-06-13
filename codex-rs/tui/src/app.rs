@@ -214,6 +214,7 @@ mod resize_reflow;
 mod session_lifecycle;
 mod side;
 mod startup_prompts;
+mod team_board;
 mod thread_events;
 mod thread_goal_actions;
 mod thread_routing;
@@ -543,6 +544,8 @@ pub(crate) struct App {
     thread_event_listener_tasks: HashMap<ThreadId, JoinHandle<()>>,
     agent_navigation: AgentNavigationState,
     side_threads: HashMap<ThreadId, SideThreadState>,
+    team_boards: HashMap<String, history_cell::TeamBoardModel>,
+    thread_team_ids: HashMap<ThreadId, String>,
     active_thread_id: Option<ThreadId>,
     active_thread_rx: Option<mpsc::Receiver<ThreadBufferedEvent>>,
     primary_thread_id: Option<ThreadId>,
@@ -1023,6 +1026,8 @@ See the Codex keymap documentation for supported actions and examples."
             thread_event_listener_tasks: HashMap::new(),
             agent_navigation: AgentNavigationState::default(),
             side_threads: HashMap::new(),
+            team_boards: HashMap::new(),
+            thread_team_ids: HashMap::new(),
             active_thread_id: None,
             active_thread_rx: None,
             primary_thread_id: None,

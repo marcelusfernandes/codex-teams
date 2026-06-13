@@ -278,6 +278,7 @@ impl App {
         }
         self.chat_widget = chat_widget;
         self.sync_active_agent_label();
+        self.sync_team_board_panel_for_current_thread();
     }
 
     pub(super) async fn select_agent_thread(

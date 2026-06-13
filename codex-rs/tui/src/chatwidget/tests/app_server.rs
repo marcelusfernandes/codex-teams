@@ -60,6 +60,24 @@ fn configured_thread_session(thread_id: ThreadId) -> crate::session_state::Threa
     }
 }
 
+fn team_task_updated(
+    thread_id: ThreadId,
+    team_id: ThreadId,
+    title: &str,
+) -> codex_app_server_protocol::TeamTaskUpdatedNotification {
+    codex_app_server_protocol::TeamTaskUpdatedNotification {
+        thread_id: thread_id.to_string(),
+        team_id: team_id.to_string(),
+        task: codex_app_server_protocol::TeamTask {
+            id: "task-1".to_string(),
+            title: title.to_string(),
+            status: codex_app_server_protocol::TeamTaskStatus::InProgress,
+            assignee: Some("builder".to_string()),
+            depends_on: Vec::new(),
+        },
+    }
+}
+
 #[tokio::test]
 async fn invalid_url_elicitation_is_declined() {
     let (mut chat, _app_event_tx, mut rx, _op_rx) = make_chatwidget_manual_with_sender().await;
@@ -151,6 +169,39 @@ async fn thread_settings_updated_updates_visible_state_without_transcript() {
     );
 
     assert_eq!(chat.current_model(), "gpt-5.4");
+}
+
+#[tokio::test]
+async fn team_task_updated_renders_sticky_board_without_transcript_history() {
+    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+    let thread_id = ThreadId::new();
+    chat.thread_id = Some(thread_id);
+
+    chat.handle_server_notification(
+        ServerNotification::TeamTaskUpdated(team_task_updated(
+            thread_id,
+            thread_id,
+            "Draw the ASCII board",
+        )),
+        /*replay_kind*/ None,
+    );
+
+    assert!(
+        drain_insert_history(&mut rx).is_empty(),
+        "TeamTaskUpdated should not append transcript history"
+    );
+    let rendered = lines_to_single_string(
+        &chat
+            .team_board_panel_lines(/*width*/ 80)
+            .expect("team board panel"),
+    );
+    assert_chatwidget_snapshot!(
+        "team_task_updated_sticky_board",
+        rendered,
+        @r###"Team board 0/1
+▸ Draw the ASCII board  @builder
+"###
+    );
 }
 
 #[tokio::test]

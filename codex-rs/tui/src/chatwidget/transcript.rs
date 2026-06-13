@@ -44,8 +44,6 @@ pub(super) struct TranscriptState {
     pub(super) plan_delta_buffer: String,
     /// True while a plan item is streaming.
     pub(super) plan_item_active: bool,
-    /// Live Agent Teams board, updated as `TeamTaskUpdated` notifications arrive.
-    pub(super) team_board: crate::history_cell::TeamBoardModel,
 }
 
 impl TranscriptState {

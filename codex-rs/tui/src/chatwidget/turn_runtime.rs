@@ -471,12 +471,10 @@ impl ChatWidget {
         self.add_to_history(history_cell::new_plan_update(update));
     }
 
-    /// Apply a streamed Agent Teams task delta to the live board and render the
-    /// refreshed board into the transcript.
+    /// Apply a streamed Agent Teams task delta to the sticky board panel.
     pub(super) fn on_team_task_updated(&mut self, task: codex_app_server_protocol::TeamTask) {
-        self.transcript.team_board.apply(task);
-        let cell = self.transcript.team_board.cell();
-        self.add_to_history(cell);
+        self.team_board.apply(task);
+        self.request_redraw();
     }
 
     pub(super) fn interrupted_turn_message(&self, reason: TurnAbortReason) -> String {

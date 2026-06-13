@@ -19,7 +19,7 @@ pub(crate) fn new_team_board(tasks: Vec<TeamTask>) -> TeamBoardCell {
     TeamBoardCell { tasks }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct TeamBoardCell {
     tasks: Vec<TeamTask>,
 }
@@ -28,7 +28,7 @@ pub(crate) struct TeamBoardCell {
 /// stream in. Applying a delta replaces a task in place (so the rendered board
 /// never reorders as work progresses) and appends unseen tasks in arrival
 /// order. `cell()` snapshots the current state for the transcript.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub(crate) struct TeamBoardModel {
     tasks: Vec<TeamTask>,
 }
@@ -43,7 +43,6 @@ impl TeamBoardModel {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn is_empty(&self) -> bool {
         self.tasks.is_empty()
     }
@@ -53,6 +52,16 @@ impl TeamBoardModel {
         TeamBoardCell {
             tasks: self.tasks.clone(),
         }
+    }
+}
+
+impl HistoryCell for TeamBoardModel {
+    fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
+        self.cell().display_lines(width)
+    }
+
+    fn raw_lines(&self) -> Vec<Line<'static>> {
+        self.cell().raw_lines()
     }
 }
 

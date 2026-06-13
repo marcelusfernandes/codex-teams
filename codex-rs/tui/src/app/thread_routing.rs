@@ -60,6 +60,7 @@ impl App {
         };
         self.active_thread_id = Some(thread_id);
         self.active_thread_rx = receiver;
+        self.sync_team_board_panel_for_current_thread();
         self.refresh_pending_thread_approvals().await;
     }
 
@@ -96,6 +97,7 @@ impl App {
             self.set_thread_active(active_id, /*active*/ false).await;
         }
         self.active_thread_rx = None;
+        self.sync_team_board_panel_for_current_thread();
         self.refresh_pending_thread_approvals().await;
     }
 
@@ -1387,6 +1389,7 @@ impl App {
         );
         match event {
             ThreadBufferedEvent::Notification(notification) => {
+                self.note_team_task_notification(&notification);
                 self.cache_collab_receiver_threads_for_notification(&notification);
                 self.chat_widget
                     .handle_server_notification(notification, /*replay_kind*/ None);
@@ -1414,9 +1417,11 @@ impl App {
 
     pub(super) fn handle_thread_event_replay(&mut self, event: ThreadBufferedEvent) {
         match event {
-            ThreadBufferedEvent::Notification(notification) => self
-                .chat_widget
-                .handle_server_notification(notification, Some(ReplayKind::ThreadSnapshot)),
+            ThreadBufferedEvent::Notification(notification) => {
+                self.note_team_task_notification(&notification);
+                self.chat_widget
+                    .handle_server_notification(notification, Some(ReplayKind::ThreadSnapshot));
+            }
             ThreadBufferedEvent::Request(request) => self
                 .chat_widget
                 .handle_server_request(request, Some(ReplayKind::ThreadSnapshot)),

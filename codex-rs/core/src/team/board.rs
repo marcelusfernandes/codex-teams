@@ -117,11 +117,7 @@ impl TaskBoard {
     /// Compare-and-set claim. Succeeds only if the task is still `Pending`,
     /// unclaimed, and every dependency is `Completed`. The whole check+set runs
     /// under the lock so concurrent claimers cannot both win.
-    pub(crate) async fn claim(
-        &self,
-        id: &TaskId,
-        who: TeammateName,
-    ) -> Result<Task, BoardError> {
+    pub(crate) async fn claim(&self, id: &TaskId, who: TeammateName) -> Result<Task, BoardError> {
         let mut guard = self.inner.lock().await;
         let completed = Self::completed_ids(&guard.tasks);
 

@@ -3349,6 +3349,51 @@ async fn side_thread_snapshot_skips_session_header_preamble() {
 }
 
 #[tokio::test]
+async fn team_task_update_from_inactive_thread_stays_visible_on_team_board() {
+    let (mut app, _app_event_rx, _op_rx) = make_test_app_with_channels().await;
+    let primary_thread_id =
+        ThreadId::from_string("00000000-0000-0000-0000-000000000101").expect("valid thread");
+    let agent_thread_id =
+        ThreadId::from_string("00000000-0000-0000-0000-000000000202").expect("valid thread");
+    let notification = ServerNotification::TeamTaskUpdated(
+        codex_app_server_protocol::TeamTaskUpdatedNotification {
+            thread_id: agent_thread_id.to_string(),
+            team_id: primary_thread_id.to_string(),
+            task: codex_app_server_protocol::TeamTask {
+                id: "task-1".to_string(),
+                title: "Keep the board pinned".to_string(),
+                status: codex_app_server_protocol::TeamTaskStatus::InProgress,
+                assignee: Some("builder".to_string()),
+                depends_on: Vec::new(),
+            },
+        },
+    );
+
+    app.primary_thread_id = Some(primary_thread_id);
+    app.active_thread_id = Some(primary_thread_id);
+    app.note_team_task_notification(&notification);
+
+    let primary_board = lines_to_single_string(
+        &app.chat_widget
+            .team_board_panel_lines(/*width*/ 80)
+            .expect("primary team board"),
+    );
+    assert_eq!(
+        primary_board,
+        "Team board 0/1\n▸ Keep the board pinned  @builder"
+    );
+
+    app.active_thread_id = Some(agent_thread_id);
+    app.sync_team_board_panel_for_current_thread();
+    let agent_board = lines_to_single_string(
+        &app.chat_widget
+            .team_board_panel_lines(/*width*/ 80)
+            .expect("agent team board"),
+    );
+    assert_eq!(agent_board, primary_board);
+}
+
+#[tokio::test]
 async fn side_thread_ignores_global_mcp_startup_notifications() {
     let (mut app, mut app_event_rx, _op_rx) = make_test_app_with_channels().await;
     while app_event_rx.try_recv().is_ok() {}
@@ -3797,6 +3842,8 @@ async fn make_test_app() -> App {
         thread_event_listener_tasks: HashMap::new(),
         agent_navigation: AgentNavigationState::default(),
         side_threads: HashMap::new(),
+        team_boards: HashMap::new(),
+        thread_team_ids: HashMap::new(),
         active_thread_id: None,
         active_thread_rx: None,
         primary_thread_id: None,
@@ -3860,6 +3907,8 @@ async fn make_test_app_with_channels() -> (
             thread_event_listener_tasks: HashMap::new(),
             agent_navigation: AgentNavigationState::default(),
             side_threads: HashMap::new(),
+            team_boards: HashMap::new(),
+            thread_team_ids: HashMap::new(),
             active_thread_id: None,
             active_thread_rx: None,
             primary_thread_id: None,

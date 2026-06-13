@@ -63,6 +63,8 @@ impl App {
         app_server_client: &AppServerSession,
         notification: ServerNotification,
     ) {
+        self.note_team_task_notification(&notification);
+
         match &notification {
             ServerNotification::ServerRequestResolved(notification) => {
                 if let Some(request) = self

@@ -609,6 +609,8 @@ pub(crate) struct ChatWidget {
     review: ReviewState,
     // Active hook runs render in a dedicated live cell so they can run alongside tools.
     active_hook_cell: Option<HookCell>,
+    // Live Agent Teams board rendered as a sticky panel, not as append-only transcript history.
+    team_board: history_cell::TeamBoardModel,
     // Ambient companion rendered over the transcript area, never inside the footer rows.
     ambient_pet: Option<crate::pets::AmbientPet>,
     pet_picker_preview_state: crate::pets::PetPickerPreviewState,
@@ -1948,6 +1950,23 @@ impl ChatWidget {
     /// runtime overrides applied via TUI, e.g., model or approval policy).
     pub(crate) fn config_ref(&self) -> &Config {
         &self.config
+    }
+
+    pub(crate) fn set_team_board_model(
+        &mut self,
+        team_board: Option<history_cell::TeamBoardModel>,
+    ) {
+        let next = team_board.unwrap_or_default();
+        if self.team_board == next {
+            return;
+        }
+        self.team_board = next;
+        self.request_redraw();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn team_board_panel_lines(&self, width: u16) -> Option<Vec<Line<'static>>> {
+        (!self.team_board.is_empty()).then(|| self.team_board.display_lines(width))
     }
 
     #[cfg(test)]
